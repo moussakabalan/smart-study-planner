@@ -1,8 +1,10 @@
-import { useMemo, useState } from "react";
-
-function NewId() {
-  return crypto.randomUUID();
-}
+import { useEffect, useState } from "react";
+import {
+  CreateTaskApi,
+  DeleteTaskApi,
+  FetchTasks,
+  UpdateTaskApi,
+} from "../api/tasksApi.js";
 
 const emptyForm = {
   title: "",
@@ -13,47 +15,58 @@ const emptyForm = {
   status: "not_started",
 };
 
-//? Task list stored in memory so forms and filters behave like the real app
+//? Task list and form talk to the Endpoints
 export default function Tasks() {
-  const [tasks, setTasks] = useState(() => [
-    {
-      id: NewId(),
-      title: "Essay outline",
-      course: "English",
-      deadline: "2026-04-22",
-      priority: "low",
-      estimatedHours: 3,
-      status: "not_started",
-    },
-  ]);
-
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [filterPriority, setFilterPriority] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [search, setSearch] = useState("");
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+  useEffect(() => {
+    let cancelled = false;
 
-    return tasks.filter((task) => {
-      if (filterPriority !== "all" && task.priority !== filterPriority) {
-        return false;
+    async function LoadTasks() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const params = {};
+        if (search.trim()) {
+          params.q = search.trim();
+        }
+        if (filterPriority !== "all") {
+          params.priority = filterPriority;
+        }
+        if (filterStatus !== "all") {
+          params.status = filterStatus;
+        }
+
+        const data = await FetchTasks(params);
+        if (!cancelled) {
+          setTasks(data);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e.response?.data?.error || e.message || "Could not load tasks");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
+    }
 
-      if (filterStatus !== "all" && task.status !== filterStatus) {
-        return false;
-      }
+    LoadTasks();
+    return () => {
+      cancelled = true;
+    };
+  }, [filterPriority, filterStatus, search]);
 
-      if (q && !`${task.title} ${task.course}`.toLowerCase().includes(q)) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [tasks, filterPriority, filterStatus, search]);
-
-  function SaveTask(event) {
+  async function SaveTask(event) {
     event.preventDefault();
 
     if (!form.title.trim()) {
@@ -63,58 +76,77 @@ export default function Tasks() {
     const hours = Number(form.estimatedHours);
     const estimatedHours = Number.isFinite(hours) && hours >= 0 ? hours : 0;
 
-    if (editingId) {
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.id === editingId
-            ? {
-                ...t,
-                title: form.title.trim(),
-                course: form.course.trim(),
-                deadline: form.deadline,
-                priority: form.priority,
-                estimatedHours,
-                status: form.status,
-              }
-            : t
-        )
-      );
-      setEditingId(null);
-    } else {
-      setTasks((prev) => [
-        ...prev,
-        {
-          id: NewId(),
-          title: form.title.trim(),
-          course: form.course.trim(),
-          deadline: form.deadline,
-          priority: form.priority,
-          estimatedHours,
-          status: form.status,
-        },
-      ]);
-    }
+    const body = {
+      title: form.title.trim(),
+      course: form.course.trim(),
+      deadline: form.deadline || "",
+      priority: form.priority,
+      estimatedHours,
+      status: form.status,
+    };
 
-    setForm(emptyForm);
+    setError(null);
+
+    try {
+      if (editingId != null) {
+        await UpdateTaskApi(editingId, body);
+      } else {
+        await CreateTaskApi(body);
+      }
+
+      const params = {};
+      if (search.trim()) {
+        params.q = search.trim();
+      }
+      if (filterPriority !== "all") {
+        params.priority = filterPriority;
+      }
+      if (filterStatus !== "all") {
+        params.status = filterStatus;
+      }
+
+      setTasks(await FetchTasks(params));
+      setEditingId(null);
+      setForm(emptyForm);
+    } catch (e) {
+      setError(e.response?.data?.error || e.message || "Save failed");
+    }
   }
 
   function StartEdit(task) {
     setEditingId(task.id);
     setForm({
       title: task.title,
-      course: task.course,
-      deadline: task.deadline,
+      course: task.course ?? "",
+      deadline: task.deadline ?? "",
       priority: task.priority,
       estimatedHours: String(task.estimatedHours ?? ""),
       status: task.status,
     });
   }
 
-  function RemoveTask(id) {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
-    if (editingId === id) {
-      setEditingId(null);
-      setForm(emptyForm);
+  async function RemoveTask(id) {
+    setError(null);
+
+    try {
+      await DeleteTaskApi(id);
+      const params = {};
+      if (search.trim()) {
+        params.q = search.trim();
+      }
+      if (filterPriority !== "all") {
+        params.priority = filterPriority;
+      }
+      if (filterStatus !== "all") {
+        params.status = filterStatus;
+      }
+      setTasks(await FetchTasks(params));
+      if (editingId === id) {
+        setEditingId(null);
+        setForm(emptyForm);
+      }
+    } catch (e) {
+      setError(e.response?.data?.error || e.message || "Delete failed");
     }
   }
 
@@ -126,7 +158,9 @@ export default function Tasks() {
   return (
     <div className="page">
       <h1 className="page-title">Tasks</h1>
-      <p className="page-lead">Create and edit tasks in the browser only for now.</p>
+      <p className="page-lead">List is stored in SQLite via the API.</p>
+
+      {error ? <p className="muted">{error}</p> : null}
 
       <section className="panel" aria-label="Filters">
         <div className="filter-row">
@@ -172,7 +206,7 @@ export default function Tasks() {
       </section>
 
       <section className="panel" aria-label="Task form">
-        <h2 className="panel-title">{editingId ? "Edit task" : "New task"}</h2>
+        <h2 className="panel-title">{editingId != null ? "Edit task" : "New task"}</h2>
 
         <form className="form-grid" onSubmit={SaveTask}>
           <label className="field">
@@ -244,9 +278,9 @@ export default function Tasks() {
 
           <div className="form-actions">
             <button type="submit" className="button button-primary">
-              {editingId ? "Save changes" : "Add task"}
+              {editingId != null ? "Save changes" : "Add task"}
             </button>
-            {editingId ? (
+            {editingId != null ? (
               <button type="button" className="button button-ghost" onClick={CancelEdit}>
                 Cancel
               </button>
@@ -256,13 +290,15 @@ export default function Tasks() {
       </section>
 
       <section className="panel" aria-label="Task list">
-        <h2 className="panel-title">Your tasks ({filtered.length})</h2>
+        <h2 className="panel-title">Your tasks ({loading ? "…" : tasks.length})</h2>
 
-        {filtered.length === 0 ? (
+        {loading ? (
+          <p className="muted">Loading…</p>
+        ) : tasks.length === 0 ? (
           <p className="muted">No tasks match your filters.</p>
         ) : (
           <ul className="task-list">
-            {filtered.map((task) => (
+            {tasks.map((task) => (
               <li key={task.id} className="task-row">
                 <div>
                   <div className="task-title">{task.title}</div>

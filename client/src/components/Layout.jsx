@@ -37,7 +37,7 @@ export default function Layout({ children }) {
       <hr />
 
       <footer>
-        <small>UI only - no backend yet.</small>
+        <small>Looking better now... :).</small>
       </footer>
     </div>
   );

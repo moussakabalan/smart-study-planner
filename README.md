@@ -1,41 +1,51 @@
 # Smart Task & Study Planner
 
-Academic productivity app: tasks, study sessions, notes, weekly planner, analytics, and deadline risk hints. 
+Single-user academic planner: tasks, study sessions, notes, weekly planner, analytics, and deadline risk (built in phases).
 
-**Phase 1** includes the React UI shell only; the API and database arrive in later phases! 😃
+## Stack
 
-## Tech Stack
+- **Client:** React (Vite), React Router, Axios
+- **Server:** Node.js, Express, better-sqlite3, express-validator
+- **Database:** SQLite (`database/schema.sql`)
 
-- React 18 (function components)
-- React Router
-- Vite
+## Requirements
 
-## Prerequisites
-
-- Node.js 18+ and npm 9+ (workspaces)
+- Node.js 18+ and npm 9+
 
 ## Setup
 
+From the repo root:
+
 ```bash
 npm install
+cp .env.example .env
+npm run db:init
 ```
 
-## Run the client (Development)
+`npm run db:init` creates `database/app.sqlite` (or the path in `DATABASE_PATH`) and applies the schema.
+
+## Run (Client + Server API)
 
 ```bash
 npm run dev
 ```
 
-Then open http://localhost:5173
+- Client: http://localhost:5173 (Vite proxies `/api` to the server)
+- API: http://127.0.0.1:3001 (see `PORT` in `.env`)
 
-## Build (Production Preview)
+Use `VITE_API_URL` in `.env` only if you need a full URL instead of the dev proxy (e.g. production build against a remote API).
 
-```bash
-npm run build
-npm run preview
-```
+## Scripts
 
-## Repository Layout
+| Command           | Description                          |
+| ----------------- | ------------------------------------ |
+| `npm run dev`     | API + Vite dev servers together, the full-fun package! :D   |
+| `npm run db:init` | Create/refresh SQLite from `schema.sql`. *Only used one-time to create the SQL file needed!* |
 
-- `client/` — Vite + React app
-- Root `package.json` — npm workspace that runs the client
+## Env Variables (Required!)
+
+See [.env.example](.env.example).
+
+## License
+
+See [LICENSE](LICENSE).
