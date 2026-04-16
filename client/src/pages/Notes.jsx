@@ -1,46 +1,83 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { FetchTasks } from "../api/tasksApi.js";
+import {
+  CreateNoteApi,
+  DeleteNoteApi,
+  FetchNotes,
+  UpdateNoteApi,
+} from "../api/notesApi.js";
 
-function NewId() {
-  return crypto.randomUUID();
-}
-
-//? Notebook entries kept in memory with simple search and optional task link text
+//? Notes page backed by API + SQLite
 export default function Notes() {
-  const [notes, setNotes] = useState(() => [
-    {
-      id: NewId(),
-      title: "Lecture keywords",
-      body: "- Mitosis\n- Meiosis\n- Crossing over",
-      format: "markdown",
-      linkedTaskTitle: "Read chapter 4",
-    },
-  ]);
+  const [notes, setNotes] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [form, setForm] = useState({
     title: "",
     body: "",
     format: "plain",
-    linkedTaskTitle: "",
+    taskId: "",
   });
 
   const [editingId, setEditingId] = useState(null);
   const [search, setSearch] = useState("");
+  const [taskFilter, setTaskFilter] = useState("all");
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) {
-      return notes;
+  useEffect(() => {
+    let cancelled = false;
+
+    async function LoadData() {
+      setLoading(true);
+      setError(null);
+      try {
+        const noteParams = {};
+        if (search.trim()) {
+          noteParams.q = search.trim();
+        }
+        if (taskFilter !== "all") {
+          noteParams.taskId = Number(taskFilter);
+        }
+
+        const [noteRows, taskRows] = await Promise.all([
+          FetchNotes(noteParams),
+          FetchTasks({}),
+        ]);
+
+        if (!cancelled) {
+          setNotes(noteRows);
+          setTasks(taskRows);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e.response?.data?.error || e.message || "Could not load notes");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
     }
 
-    return notes.filter(
-      (n) =>
-        n.title.toLowerCase().includes(q) ||
-        n.body.toLowerCase().includes(q) ||
-        (n.linkedTaskTitle && n.linkedTaskTitle.toLowerCase().includes(q))
-    );
-  }, [notes, search]);
+    LoadData();
+    return () => {
+      cancelled = true;
+    };
+  }, [search, taskFilter]);
 
-  function SaveNote(event) {
+  async function RefreshNotes() {
+    const params = {};
+    if (search.trim()) {
+      params.q = search.trim();
+    }
+    if (taskFilter !== "all") {
+      params.taskId = Number(taskFilter);
+    }
+    setNotes(await FetchNotes(params));
+  }
+
+  async function SaveNote(event) {
     event.preventDefault();
     if (!form.title.trim()) {
       return;
@@ -50,24 +87,28 @@ export default function Notes() {
       title: form.title.trim(),
       body: form.body,
       format: form.format,
-      linkedTaskTitle: form.linkedTaskTitle.trim(),
+      taskId: form.taskId ? Number(form.taskId) : null,
     };
 
-    if (editingId) {
-      setNotes((prev) =>
-        prev.map((n) => (n.id === editingId ? { ...n, ...payload } : n))
-      );
-      setEditingId(null);
-    } else {
-      setNotes((prev) => [...prev, { id: NewId(), ...payload }]);
-    }
+    setError(null);
+    try {
+      if (editingId) {
+        await UpdateNoteApi(editingId, payload);
+        setEditingId(null);
+      } else {
+        await CreateNoteApi(payload);
+      }
 
-    setForm({
-      title: "",
-      body: "",
-      format: "plain",
-      linkedTaskTitle: "",
-    });
+      await RefreshNotes();
+      setForm({
+        title: "",
+        body: "",
+        format: "plain",
+        taskId: "",
+      });
+    } catch (e) {
+      setError(e.response?.data?.error || e.message || "Could not save note");
+    }
   }
 
   function StartEdit(note) {
@@ -76,20 +117,26 @@ export default function Notes() {
       title: note.title,
       body: note.body,
       format: note.format,
-      linkedTaskTitle: note.linkedTaskTitle ?? "",
+      taskId: note.taskId ? String(note.taskId) : "",
     });
   }
 
-  function RemoveNote(id) {
-    setNotes((prev) => prev.filter((n) => n.id !== id));
-    if (editingId === id) {
-      setEditingId(null);
-      setForm({
-        title: "",
-        body: "",
-        format: "plain",
-        linkedTaskTitle: "",
-      });
+  async function RemoveNote(id) {
+    setError(null);
+    try {
+      await DeleteNoteApi(id);
+      await RefreshNotes();
+      if (editingId === id) {
+        setEditingId(null);
+        setForm({
+          title: "",
+          body: "",
+          format: "plain",
+          taskId: "",
+        });
+      }
+    } catch (e) {
+      setError(e.response?.data?.error || e.message || "Could not delete note");
     }
   }
 
@@ -99,26 +146,44 @@ export default function Notes() {
       title: "",
       body: "",
       format: "plain",
-      linkedTaskTitle: "",
+      taskId: "",
     });
   }
 
   return (
     <div className="page">
       <h1 className="page-title">Notes</h1>
-      <p className="page-lead">Plain text or markdown bodies. Link text is just a label until tasks load from the API.</p>
+      <p className="page-lead">Plain text or markdown notes saved in SQLite.</p>
+      {error ? <p className="muted">{error}</p> : null}
 
       <section className="panel" aria-label="Search notes">
-        <label className="field">
-          <span className="field-label">Search notes</span>
-          <input
-            type="search"
-            className="input"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search title, body, or linked task"
-          />
-        </label>
+        <div className="filter-row">
+          <label className="field">
+            <span className="field-label">Search notes</span>
+            <input
+              type="search"
+              className="input"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search title/body"
+            />
+          </label>
+          <label className="field">
+            <span className="field-label">Task filter</span>
+            <select
+              className="input"
+              value={taskFilter}
+              onChange={(e) => setTaskFilter(e.target.value)}
+            >
+              <option value="all">All tasks</option>
+              {tasks.map((task) => (
+                <option key={task.id} value={task.id}>
+                  {task.title}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </section>
 
       <section className="panel" aria-label="Note form">
@@ -149,12 +214,18 @@ export default function Notes() {
 
           <label className="field">
             <span className="field-label">Linked task (optional)</span>
-            <input
+            <select
               className="input"
-              value={form.linkedTaskTitle}
-              onChange={(e) => setForm((f) => ({ ...f, linkedTaskTitle: e.target.value }))}
-              placeholder="e.g. Essay outline"
-            />
+              value={form.taskId}
+              onChange={(e) => setForm((f) => ({ ...f, taskId: e.target.value }))}
+            >
+              <option value="">No linked task</option>
+              {tasks.map((task) => (
+                <option key={task.id} value={task.id}>
+                  {task.title}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label className="field">
@@ -181,20 +252,22 @@ export default function Notes() {
       </section>
 
       <section className="panel" aria-label="Notes list">
-        <h2 className="panel-title">All notes ({filtered.length})</h2>
+        <h2 className="panel-title">All notes ({loading ? "..." : notes.length})</h2>
 
-        {filtered.length === 0 ? (
+        {loading ? (
+          <p className="muted">Loading...</p>
+        ) : notes.length === 0 ? (
           <p className="muted">No notes match your search.</p>
         ) : (
           <ul className="note-list">
-            {filtered.map((note) => (
+            {notes.map((note) => (
               <li key={note.id} className="note-card">
                 <div className="note-card-head">
                   <div>
                     <div className="note-title">{note.title}</div>
                     <div className="note-meta">
                       {note.format === "markdown" ? "Markdown" : "Plain text"}
-                      {note.linkedTaskTitle ? ` · Linked: ${note.linkedTaskTitle}` : ""}
+                      {note.taskTitle ? ` · Linked: ${note.taskTitle}` : ""}
                     </div>
                   </div>
                   <div className="row-actions">
