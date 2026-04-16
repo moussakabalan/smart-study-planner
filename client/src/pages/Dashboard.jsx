@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { FetchTasks, FetchUpcomingTasks } from "../api/tasksApi.js";
+import { FetchAnalyticsSummary, FetchRiskSummary } from "../api/analyticsApi.js";
 
-//? Dashboard pulls real task counts from the API; sessions/notes stay placeholder until later phases
+//? Dashboard now shows tasks + analytics + risk warnings from backend
 export default function Dashboard() {
   const [openCount, setOpenCount] = useState(0);
   const [previewTasks, setPreviewTasks] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [risk, setRisk] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -17,8 +20,12 @@ export default function Dashboard() {
       setError(null);
 
       try {
-        const all = await FetchTasks({});
-        const upcoming = await FetchUpcomingTasks();
+        const [all, upcoming, summaryData, riskData] = await Promise.all([
+          FetchTasks({}),
+          FetchUpcomingTasks(),
+          FetchAnalyticsSummary(),
+          FetchRiskSummary(),
+        ]);
 
         if (cancelled) {
           return;
@@ -26,6 +33,8 @@ export default function Dashboard() {
 
         setOpenCount(all.filter((t) => t.status !== "completed").length);
         setPreviewTasks(upcoming.slice(0, 8));
+        setSummary(summaryData);
+        setRisk(riskData);
       } catch (e) {
         if (!cancelled) {
           setError(e.response?.data?.error || e.message || "Could not load dashboard");
@@ -46,7 +55,7 @@ export default function Dashboard() {
   return (
     <div className="page">
       <h1 className="page-title">Dashboard</h1>
-      <p className="page-lead">Task numbers come from the server. Sessions and notes are still placeholders.</p>
+      <p className="page-lead">Task, analytics, and risk numbers come from the server.</p>
 
       {error ? <p className="muted">{error}</p> : null}
 
@@ -60,20 +69,34 @@ export default function Dashboard() {
         </article>
 
         <article className="card">
-          <h2 className="card-title">Study sessions (placeholder)</h2>
-          <p className="card-metric">—</p>
-          <Link className="text-link" to="/planner">
-            Open planner
+          <h2 className="card-title">Planned vs actual study</h2>
+          <p className="card-metric">
+            {loading ? "…" : `${summary?.plannedStudyHours ?? 0}h / ${summary?.actualStudyHours ?? 0}h`}
+          </p>
+          <Link className="text-link" to="/analytics">
+            Open analytics
           </Link>
         </article>
 
         <article className="card">
-          <h2 className="card-title">Notes (placeholder)</h2>
-          <p className="card-metric">—</p>
-          <Link className="text-link" to="/notes">
-            Open notes
+          <h2 className="card-title">Risk alerts</h2>
+          <p className="card-metric">{loading ? "…" : risk?.counts?.riskyTasks ?? 0}</p>
+          <Link className="text-link" to="/analytics">
+            View warnings
           </Link>
         </article>
+      </section>
+
+      <section className="panel" aria-label="Risk summary">
+        <h2 className="panel-title">Risk summary</h2>
+        {loading ? (
+          <p className="muted">Loading...</p>
+        ) : (
+          <p className="muted">
+            Overdue: {risk?.counts?.overdueTasks ?? 0} · Clustered in next 7 days:{" "}
+            {risk?.counts?.clusteredDeadlines ?? 0}
+          </p>
+        )}
       </section>
 
       <section className="panel" aria-label="Upcoming tasks">

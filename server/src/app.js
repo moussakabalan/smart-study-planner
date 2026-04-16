@@ -3,6 +3,7 @@ import cors from "cors";
 import { TasksRouter } from "./routes/tasks.js";
 import { SessionsRouter } from "./routes/sessions.js";
 import { NotesRouter } from "./routes/notes.js";
+import { AnalyticsRouter } from "./routes/analytics.js";
 
 //? Builds the Express app and mounts REST routes on the given DB handle
 export function CreateApp(db) {
@@ -21,6 +22,7 @@ export function CreateApp(db) {
   app.use("/api/tasks", TasksRouter(db));
   app.use("/api/sessions", SessionsRouter(db));
   app.use("/api/notes", NotesRouter(db));
+  app.use("/api/analytics", AnalyticsRouter(db));
 
   app.use((req, res) => {
     res.status(404).json({ error: "Not found" });

@@ -46,6 +46,15 @@ Use `VITE_API_URL` in `.env` only if you need a full URL instead of the dev prox
 
 See [.env.example](.env.example).
 
+## Phase Progress Checklist
+
+- [x] Phase 1: React shell + basic visuals
+- [x] Phase 2: Tasks API + SQLite + client task integration
+- [x] Phase 3: Study sessions API + weekly planner integration
+- [x] Phase 4: Notes API + notes page integration
+- [x] Phase 5: Analytics + risk detection
+- [ ] Phase 6: Full tests + final deployment/docs pass
+
 ## License
 
 See [LICENSE](LICENSE).
