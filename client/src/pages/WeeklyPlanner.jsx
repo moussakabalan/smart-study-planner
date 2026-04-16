@@ -1,8 +1,10 @@
-import { useMemo, useState } from "react";
-
-function NewId() {
-  return crypto.randomUUID();
-}
+import { useEffect, useMemo, useState } from "react";
+import {
+  CreateSessionApi,
+  DeleteSessionApi,
+  FetchSessionsByWeek,
+  FetchTasks,
+} from "../api/tasksApi.js";
 
 function StartOfWeekMonday(date) {
   const d = new Date(date);
@@ -34,31 +36,13 @@ function FormatIsoDate(date) {
   return `${y}-${m}-${d}`;
 }
 
-//? Week strip with sample sessions so the planner layout is visible early :)
+//? Week planner now talks to the real API and stores sessions in SQLite
 export default function WeeklyPlanner() {
   const [weekOffset, setWeekOffset] = useState(0);
-
-  const [sessions, setSessions] = useState(() => {
-    const monday = StartOfWeekMonday(new Date());
-    const weekKey = FormatIsoDate(monday);
-
-    return [
-      {
-        id: NewId(),
-        taskTitle: "Biology reading",
-        dayIndex: 1,
-        durationMinutes: 60,
-        weekStart: weekKey,
-      },
-      {
-        id: NewId(),
-        taskTitle: "Calculus practice",
-        dayIndex: 3,
-        durationMinutes: 90,
-        weekStart: weekKey,
-      },
-    ];
-  });
+  const [sessions, setSessions] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const weekStart = useMemo(() => {
     const base = StartOfWeekMonday(new Date());
@@ -69,17 +53,49 @@ export default function WeeklyPlanner() {
     return Array.from({ length: 7 }, (_, i) => AddDays(weekStart, i));
   }, [weekStart]);
 
+  const weekKey = useMemo(() => FormatIsoDate(weekStart), [weekStart]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function LoadPlannerData() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const [taskRows, sessionRows] = await Promise.all([
+          FetchTasks({}),
+          FetchSessionsByWeek(weekKey),
+        ]);
+
+        if (!cancelled) {
+          setTasks(taskRows);
+          setSessions(sessionRows);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e.response?.data?.error || e.message || "Could not load planner data");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    LoadPlannerData();
+    return () => {
+      cancelled = true;
+    };
+  }, [weekKey]);
+
   const sessionsByDay = useMemo(() => {
     const map = new Map();
     days.forEach((d) => map.set(FormatIsoDate(d), []));
 
-    const weekKey = FormatIsoDate(weekStart);
-
     sessions
-      .filter((s) => s.weekStart === weekKey)
       .forEach((s) => {
-        const dayDate = AddDays(weekStart, s.dayIndex);
-        const key = FormatIsoDate(dayDate);
+        const key = s.sessionDate;
         if (!map.has(key)) {
           map.set(key, []);
         }
@@ -87,42 +103,57 @@ export default function WeeklyPlanner() {
       });
 
     return map;
-  }, [sessions, days, weekStart]);
+  }, [sessions, days]);
 
   const [draft, setDraft] = useState({
-    taskTitle: "",
-    dayIndex: 0,
+    taskId: "",
+    sessionDate: "",
     durationMinutes: 60,
   });
 
-  function AddSession(event) {
+  //? Keep the day picker inside the visible week (min/max match state; avoids broken controlled date inputs)
+  useEffect(() => {
+    setDraft((d) => ({
+      ...d,
+      sessionDate: weekKey,
+    }));
+  }, [weekKey]);
+
+  async function AddSession(event) {
     event.preventDefault();
-    if (!draft.taskTitle.trim()) {
+    if (!draft.taskId) {
       return;
     }
 
-    setSessions((prev) => [
-      ...prev,
-      {
-        id: NewId(),
-        taskTitle: draft.taskTitle.trim(),
-        dayIndex: Number(draft.dayIndex),
-        durationMinutes: Math.max(1, Number(draft.durationMinutes) || 60),
-        weekStart: FormatIsoDate(weekStart),
-      },
-    ]);
-
-    setDraft({ taskTitle: "", dayIndex: 0, durationMinutes: 60 });
+    setError(null);
+    try {
+      await CreateSessionApi({
+        taskId: Number(draft.taskId),
+        sessionDate: draft.sessionDate,
+        plannedDurationMinutes: Math.max(1, Number(draft.durationMinutes) || 60),
+      });
+      setSessions(await FetchSessionsByWeek(weekKey));
+      setDraft((d) => ({ ...d, taskId: "", durationMinutes: 60 }));
+    } catch (e) {
+      setError(e.response?.data?.error || e.message || "Could not save session");
+    }
   }
 
-  function RemoveSession(id) {
-    setSessions((prev) => prev.filter((s) => s.id !== id));
+  async function RemoveSession(id) {
+    setError(null);
+    try {
+      await DeleteSessionApi(id);
+      setSessions(await FetchSessionsByWeek(weekKey));
+    } catch (e) {
+      setError(e.response?.data?.error || e.message || "Could not delete session");
+    }
   }
 
   return (
     <div className="page">
       <h1 className="page-title">Weekly planner</h1>
-      <p className="page-lead">Move between weeks and slot sample study blocks. Data resets on refresh for now.</p>
+      <p className="page-lead">Move between weeks and create sessions linked to real tasks.</p>
+      {error ? <p className="muted">{error}</p> : null}
 
       <div className="toolbar">
         <button type="button" className="button button-ghost" onClick={() => setWeekOffset((w) => w - 1)}>
@@ -140,30 +171,35 @@ export default function WeeklyPlanner() {
       </div>
 
       <section className="panel" aria-label="Add session">
-        <h2 className="panel-title">Add sample session</h2>
+        <h2 className="panel-title">Add session</h2>
         <form className="form-grid form-grid-tight" onSubmit={AddSession}>
           <label className="field">
-            <span className="field-label">Linked task title</span>
-            <input
-              className="input"
-              value={draft.taskTitle}
-              onChange={(e) => setDraft((d) => ({ ...d, taskTitle: e.target.value }))}
-              required
-            />
-          </label>
-          <label className="field">
-            <span className="field-label">Day</span>
+            <span className="field-label">Task</span>
             <select
               className="input"
-              value={draft.dayIndex}
-              onChange={(e) => setDraft((d) => ({ ...d, dayIndex: e.target.value }))}
+              value={draft.taskId}
+              onChange={(e) => setDraft((d) => ({ ...d, taskId: e.target.value }))}
+              required
             >
-              {days.map((d, i) => (
-                <option key={i} value={i}>
-                  {d.toLocaleDateString(undefined, { weekday: "long" })}
+              <option value="">Select a task</option>
+              {tasks.map((task) => (
+                <option key={task.id} value={task.id}>
+                  {task.title}
                 </option>
               ))}
             </select>
+          </label>
+          <label className="field">
+            <span className="field-label">Day</span>
+            <input
+              type="date"
+              className="input"
+              min={weekKey}
+              max={FormatIsoDate(AddDays(weekStart, 6))}
+              value={draft.sessionDate}
+              onChange={(e) => setDraft((d) => ({ ...d, sessionDate: e.target.value }))}
+              required
+            />
           </label>
           <label className="field">
             <span className="field-label">Minutes</span>
@@ -192,7 +228,9 @@ export default function WeeklyPlanner() {
             <section key={key} className="day-column" role="listitem">
               <h2 className="day-heading">{FormatDayLabel(day)}</h2>
 
-              {list.length === 0 ? (
+              {loading ? (
+                <p className="muted day-empty">Loading...</p>
+              ) : list.length === 0 ? (
                 <p className="muted day-empty">No sessions</p>
               ) : (
                 <ul className="session-list">
@@ -200,7 +238,7 @@ export default function WeeklyPlanner() {
                     <li key={s.id} className="session-card">
                       <div>
                         <div className="session-title">{s.taskTitle}</div>
-                        <div className="session-meta">{s.durationMinutes} minutes</div>
+                        <div className="session-meta">{s.plannedDurationMinutes} minutes</div>
                       </div>
                       <button
                         type="button"

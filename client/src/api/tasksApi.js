@@ -28,3 +28,20 @@ export async function UpdateTaskApi(id, body) {
 export async function DeleteTaskApi(id) {
   await api.delete(`/api/tasks/${id}`);
 }
+
+//? Loads sessions for a week start date (YYYY-MM-DD format)
+export async function FetchSessionsByWeek(weekStart) {
+  const { data } = await api.get("/api/sessions", { params: { weekStart } });
+  return data;
+}
+
+//? Creates one session linked to a real task id
+export async function CreateSessionApi(body) {
+  const { data } = await api.post("/api/sessions", body);
+  return data;
+}
+
+//? Deletes one session by id
+export async function DeleteSessionApi(id) {
+  await api.delete(`/api/sessions/${id}`);
+}
