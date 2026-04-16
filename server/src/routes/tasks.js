@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { body, param, query, validationResult } from "express-validator";
+import { RequireAuth } from "../middleware/requireAuth.js";
 import * as TaskService from "../services/taskService.js";
 
 function SendValidationError(res, req) {
@@ -11,6 +12,7 @@ function SendValidationError(res, req) {
 //? Task REST handlers wired to the service layer
 export function TasksRouter(db) {
   const r = Router();
+  r.use(RequireAuth);
 
   const listValidators = [
     query("q").optional({ checkFalsy: true }).trim(),
@@ -28,7 +30,7 @@ export function TasksRouter(db) {
       return SendValidationError(res, req);
     }
 
-    const tasks = TaskService.GetTasks(db, {
+    const tasks = TaskService.GetTasks(db, req.session.userId, {
       q: req.query.q,
       priority: req.query.priority,
       status: req.query.status,
@@ -43,7 +45,7 @@ export function TasksRouter(db) {
       return SendValidationError(res, req);
     }
 
-    const task = TaskService.GetTaskById(db, req.params.id);
+    const task = TaskService.GetTaskById(db, req.session.userId, req.params.id);
     if (!task) {
       return res.status(404).json({ error: "Task not found" });
     }
@@ -84,7 +86,7 @@ export function TasksRouter(db) {
           ? null
           : String(req.body.deadline).slice(0, 10);
 
-      const task = TaskService.CreateTask(db, {
+      const task = TaskService.CreateTask(db, req.session.userId, {
         title: req.body.title,
         course: req.body.course ?? "",
         deadline,
@@ -131,7 +133,7 @@ export function TasksRouter(db) {
           ? null
           : String(req.body.deadline).slice(0, 10);
 
-      const task = TaskService.UpdateTask(db, req.params.id, {
+      const task = TaskService.UpdateTask(db, req.session.userId, req.params.id, {
         title: req.body.title,
         course: req.body.course ?? "",
         deadline,
@@ -153,7 +155,7 @@ export function TasksRouter(db) {
       return SendValidationError(res, req);
     }
 
-    const ok = TaskService.DeleteTask(db, req.params.id);
+    const ok = TaskService.DeleteTask(db, req.session.userId, req.params.id);
     if (!ok) {
       return res.status(404).json({ error: "Task not found" });
     }

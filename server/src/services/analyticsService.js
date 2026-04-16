@@ -9,29 +9,32 @@ function HoursFromMinutes(minutes) {
   return Number((Number(minutes || 0) / 60).toFixed(2));
 }
 
-//? Gets analytics summary for the dashboard and analytics page
-export function GetAnalyticsSummary(db) {
+//? Analytics for one user only
+export function GetAnalyticsSummary(db, userId) {
   const completedCountRow = db
-    .prepare("SELECT COUNT(*) AS total FROM tasks WHERE status = 'completed'")
-    .get();
+    .prepare("SELECT COUNT(*) AS total FROM tasks WHERE user_id = ? AND status = 'completed'")
+    .get(userId);
 
   const sessionTotalsRow = db
     .prepare(
       `SELECT
-         COALESCE(SUM(planned_duration_minutes), 0) AS planned_total,
-         COALESCE(SUM(actual_duration_minutes), 0) AS actual_total
-       FROM study_sessions`
+         COALESCE(SUM(s.planned_duration_minutes), 0) AS planned_total,
+         COALESCE(SUM(s.actual_duration_minutes), 0) AS actual_total
+       FROM study_sessions s
+       JOIN tasks t ON t.id = s.task_id
+       WHERE t.user_id = ?`
     )
-    .get();
+    .get(userId);
 
   const completedRows = db
     .prepare(
       `SELECT created_at, completed_at
        FROM tasks
-       WHERE status = 'completed'
+       WHERE user_id = ?
+         AND status = 'completed'
          AND completed_at IS NOT NULL`
     )
-    .all();
+    .all(userId);
 
   let durationTotalHours = 0;
   let durationCount = 0;

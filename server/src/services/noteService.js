@@ -11,10 +11,10 @@ function RowToNote(row) {
   };
 }
 
-//? Gets notes with optional text search and task filter
-export function GetNotes(db, { q, taskId } = {}) {
-  const clauses = [];
-  const params = [];
+//? Gets notes for one user with optional search and task filter
+export function GetNotes(db, userId, { q, taskId } = {}) {
+  const clauses = ["n.user_id = ?"];
+  const params = [userId];
 
   if (q && String(q).trim()) {
     const like = `%${String(q).trim().replace(/%/g, "\\%")}%`;
@@ -27,7 +27,7 @@ export function GetNotes(db, { q, taskId } = {}) {
     params.push(taskId);
   }
 
-  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+  const where = `WHERE ${clauses.join(" AND ")}`;
   const rows = db
     .prepare(
       `SELECT
@@ -43,8 +43,8 @@ export function GetNotes(db, { q, taskId } = {}) {
   return rows.map(RowToNote);
 }
 
-//? Loads one note by id
-export function GetNoteById(db, id) {
+//? Loads one note for this user
+export function GetNoteById(db, userId, id) {
   const row = db
     .prepare(
       `SELECT
@@ -52,33 +52,34 @@ export function GetNoteById(db, id) {
          t.title AS task_title
        FROM notes n
        LEFT JOIN tasks t ON t.id = n.task_id
-       WHERE n.id = ?`
+       WHERE n.id = ? AND n.user_id = ?`
     )
-    .get(id);
+    .get(id, userId);
 
   return row ? RowToNote(row) : undefined;
 }
 
-//? Creates a note row
-export function CreateNote(db, input) {
+//? Creates a note for this user
+export function CreateNote(db, userId, input) {
   const info = db
     .prepare(
-      `INSERT INTO notes (task_id, title, body, format)
-       VALUES (@task_id, @title, @body, @format)`
+      `INSERT INTO notes (user_id, task_id, title, body, format)
+       VALUES (@user_id, @task_id, @title, @body, @format)`
     )
     .run({
+      user_id: userId,
       task_id: input.taskId ?? null,
       title: input.title,
       body: input.body ?? "",
       format: input.format,
     });
 
-  return GetNoteById(db, info.lastInsertRowid);
+  return GetNoteById(db, userId, info.lastInsertRowid);
 }
 
-//? Updates one note row
-export function UpdateNote(db, id, input) {
-  const existing = db.prepare("SELECT id FROM notes WHERE id = ?").get(id);
+//? Updates a note for this user
+export function UpdateNote(db, userId, id, input) {
+  const existing = db.prepare("SELECT id FROM notes WHERE id = ? AND user_id = ?").get(id, userId);
   if (!existing) {
     return undefined;
   }
@@ -90,20 +91,21 @@ export function UpdateNote(db, id, input) {
        body = @body,
        format = @format,
        updated_at = datetime('now')
-     WHERE id = @id`
+     WHERE id = @id AND user_id = @user_id`
   ).run({
     id,
+    user_id: userId,
     task_id: input.taskId ?? null,
     title: input.title,
     body: input.body ?? "",
     format: input.format,
   });
 
-  return GetNoteById(db, id);
+  return GetNoteById(db, userId, id);
 }
 
-//? Deletes one note row
-export function DeleteNote(db, id) {
-  const info = db.prepare("DELETE FROM notes WHERE id = ?").run(id);
+//? Deletes a note for this user
+export function DeleteNote(db, userId, id) {
+  const info = db.prepare("DELETE FROM notes WHERE id = ? AND user_id = ?").run(id, userId);
   return info.changes > 0;
 }

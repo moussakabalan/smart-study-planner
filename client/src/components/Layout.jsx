@@ -1,11 +1,26 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext.jsx";
 
-export default function Layout({ children }) {
+export default function Layout() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  async function handleLogout() {
+    await logout();
+    navigate("/login", { replace: true });
+  }
+
   return (
     <div>
       <header>
         <p>
           <b>Smart Study Planner</b>
+          {user?.email ? (
+            <>
+              {" "}
+              <small>({user.email})</small>
+            </>
+          ) : null}
         </p>
         <nav aria-label="Main">
           <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : undefined)}>
@@ -27,12 +42,18 @@ export default function Layout({ children }) {
           <NavLink to="/analytics" className={({ isActive }) => (isActive ? "active" : undefined)}>
             Analytics
           </NavLink>
+          <span className="sep">|</span>
+          <button type="button" className="link-button" onClick={handleLogout}>
+            Log out
+          </button>
         </nav>
       </header>
 
       <hr />
 
-      <main>{children}</main>
+      <main>
+        <Outlet />
+      </main>
 
       <hr />
 

@@ -12,8 +12,8 @@ function RowToSession(row) {
   };
 }
 
-//? Gets sessions between two dates (inclusive) and includes task titles
-export function GetSessionsInRange(db, from, to) {
+//? Gets sessions in a date range for this user only
+export function GetSessionsInRange(db, userId, from, to) {
   const rows = db
     .prepare(
       `SELECT
@@ -21,17 +21,25 @@ export function GetSessionsInRange(db, from, to) {
          t.title AS task_title
        FROM study_sessions s
        JOIN tasks t ON t.id = s.task_id
-       WHERE date(s.session_date) >= date(?)
+       WHERE t.user_id = ?
+         AND date(s.session_date) >= date(?)
          AND date(s.session_date) <= date(?)
        ORDER BY date(s.session_date) ASC, s.id ASC`
     )
-    .all(from, to);
+    .all(userId, from, to);
 
   return rows.map(RowToSession);
 }
 
-//? Creates a study session and returns the saved row
-export function CreateSession(db, input) {
+//? Creates a study session if the task belongs to this user
+export function CreateSession(db, userId, input) {
+  const task = db
+    .prepare("SELECT id FROM tasks WHERE id = ? AND user_id = ?")
+    .get(input.taskId, userId);
+  if (!task) {
+    return undefined;
+  }
+
   const info = db
     .prepare(
       `INSERT INTO study_sessions
@@ -53,15 +61,21 @@ export function CreateSession(db, input) {
          t.title AS task_title
        FROM study_sessions s
        JOIN tasks t ON t.id = s.task_id
-       WHERE s.id = ?`
+       WHERE s.id = ? AND t.user_id = ?`
     )
-    .get(info.lastInsertRowid);
+    .get(info.lastInsertRowid, userId);
 
   return row ? RowToSession(row) : undefined;
 }
 
-//? Deletes one session by id
-export function DeleteSession(db, id) {
-  const info = db.prepare("DELETE FROM study_sessions WHERE id = ?").run(id);
+//? Deletes one session if it belongs to this user through the task
+export function DeleteSession(db, userId, id) {
+  const info = db
+    .prepare(
+      `DELETE FROM study_sessions
+       WHERE id = ?
+         AND task_id IN (SELECT id FROM tasks WHERE user_id = ?)`
+    )
+    .run(id, userId);
   return info.changes > 0;
 }

@@ -5,7 +5,7 @@ Single-user academic planner: tasks, study sessions, notes, weekly planner, anal
 ## Stack
 
 - **Client:** React (Vite), React Router, Axios
-- **Server:** Node.js, Express, better-sqlite3, express-validator
+- **Server:** Node.js, Express, better-sqlite3, express-session, bcryptjs, express-validator
 - **Database:** SQLite (`database/schema.sql`)
 
 ## Requirements

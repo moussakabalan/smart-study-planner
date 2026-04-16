@@ -20,8 +20,8 @@ function DayDiff(a, b) {
   return Math.ceil((a.getTime() - b.getTime()) / oneDay);
 }
 
-//? Rule-based risk summary (no AI) for dashboard warnings
-export function GetRiskSummary(db) {
+//? Risk rules for one user's tasks only
+export function GetRiskSummary(db, userId) {
   const today = StartOfToday();
   const maxHoursPerDay = 3;
   const clusterWindowDays = 7;
@@ -31,10 +31,11 @@ export function GetRiskSummary(db) {
     .prepare(
       `SELECT id, title, deadline, estimated_hours
        FROM tasks
-       WHERE status != 'completed'
+       WHERE user_id = ?
+         AND status != 'completed'
          AND deadline IS NOT NULL`
     )
-    .all();
+    .all(userId);
 
   const riskyTasks = [];
   const overdueTasks = [];

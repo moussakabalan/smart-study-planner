@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { body, param, query, validationResult } from "express-validator";
+import { RequireAuth } from "../middleware/requireAuth.js";
 import * as NoteService from "../services/noteService.js";
 
 function SendValidationError(res, req) {
@@ -11,6 +12,7 @@ function SendValidationError(res, req) {
 //? Notes CRUD and search endpoints
 export function NotesRouter(db) {
   const r = Router();
+  r.use(RequireAuth);
 
   r.get(
     "/",
@@ -23,7 +25,7 @@ export function NotesRouter(db) {
         return SendValidationError(res, req);
       }
 
-      const notes = NoteService.GetNotes(db, {
+      const notes = NoteService.GetNotes(db, req.session.userId, {
         q: req.query.q,
         taskId: req.query.taskId,
       });
@@ -36,7 +38,7 @@ export function NotesRouter(db) {
       return SendValidationError(res, req);
     }
 
-    const note = NoteService.GetNoteById(db, req.params.id);
+    const note = NoteService.GetNoteById(db, req.session.userId, req.params.id);
     if (!note) {
       return res.status(404).json({ error: "Note not found" });
     }
@@ -58,13 +60,15 @@ export function NotesRouter(db) {
 
     const taskId = req.body.taskId ?? null;
     if (taskId != null) {
-      const exists = db.prepare("SELECT id FROM tasks WHERE id = ?").get(taskId);
+      const exists = db
+        .prepare("SELECT id FROM tasks WHERE id = ? AND user_id = ?")
+        .get(taskId, req.session.userId);
       if (!exists) {
         return res.status(400).json({ error: "Task does not exist" });
       }
     }
 
-    const note = NoteService.CreateNote(db, {
+    const note = NoteService.CreateNote(db, req.session.userId, {
       taskId,
       title: req.body.title,
       body: req.body.body ?? "",
@@ -81,13 +85,15 @@ export function NotesRouter(db) {
 
     const taskId = req.body.taskId ?? null;
     if (taskId != null) {
-      const exists = db.prepare("SELECT id FROM tasks WHERE id = ?").get(taskId);
+      const exists = db
+        .prepare("SELECT id FROM tasks WHERE id = ? AND user_id = ?")
+        .get(taskId, req.session.userId);
       if (!exists) {
         return res.status(400).json({ error: "Task does not exist" });
       }
     }
 
-    const note = NoteService.UpdateNote(db, req.params.id, {
+    const note = NoteService.UpdateNote(db, req.session.userId, req.params.id, {
       taskId,
       title: req.body.title,
       body: req.body.body ?? "",
@@ -106,7 +112,7 @@ export function NotesRouter(db) {
       return SendValidationError(res, req);
     }
 
-    const ok = NoteService.DeleteNote(db, req.params.id);
+    const ok = NoteService.DeleteNote(db, req.session.userId, req.params.id);
     if (!ok) {
       return res.status(404).json({ error: "Note not found" });
     }

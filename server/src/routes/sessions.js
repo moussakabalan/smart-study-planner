@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { body, param, query, validationResult } from "express-validator";
+import { RequireAuth } from "../middleware/requireAuth.js";
 import * as SessionService from "../services/sessionService.js";
 
 function SendValidationError(res, req) {
@@ -8,7 +9,7 @@ function SendValidationError(res, req) {
   return res.status(400).json({ error: first?.msg || "Invalid input" });
 }
 
-function ParseIsoLocal(iso) { //! Replacement for new Date(dateValue) to return based on local time!
+function ParseIsoLocal(iso) {
   if (typeof iso === "string" && /^\d{4}-\d{2}-\d{2}$/.test(iso)) {
     const [y, m, d] = iso.split("-").map(Number);
     return new Date(y, m - 1, d);
@@ -41,6 +42,7 @@ function FormatIsoDate(date) {
 //? Study session REST handlers for planner week view + CRUD bits
 export function SessionsRouter(db) {
   const r = Router();
+  r.use(RequireAuth);
 
   r.get(
     "/",
@@ -73,7 +75,7 @@ export function SessionsRouter(db) {
         to = FormatIsoDate(AddDays(weekStart, 6));
       }
 
-      const sessions = SessionService.GetSessionsInRange(db, from, to);
+      const sessions = SessionService.GetSessionsInRange(db, req.session.userId, from, to);
       return res.json(sessions);
     }
   );
@@ -100,17 +102,16 @@ export function SessionsRouter(db) {
         return SendValidationError(res, req);
       }
 
-      const taskExists = db.prepare("SELECT id FROM tasks WHERE id = ?").get(req.body.taskId);
-      if (!taskExists) {
-        return res.status(400).json({ error: "Task does not exist" });
-      }
-
-      const session = SessionService.CreateSession(db, {
+      const session = SessionService.CreateSession(db, req.session.userId, {
         taskId: req.body.taskId,
         sessionDate: req.body.sessionDate,
         plannedDurationMinutes: req.body.plannedDurationMinutes,
         actualDurationMinutes: req.body.actualDurationMinutes ?? null,
       });
+
+      if (!session) {
+        return res.status(400).json({ error: "Task does not exist" });
+      }
 
       return res.status(201).json(session);
     }
@@ -121,7 +122,7 @@ export function SessionsRouter(db) {
       return SendValidationError(res, req);
     }
 
-    const ok = SessionService.DeleteSession(db, req.params.id);
+    const ok = SessionService.DeleteSession(db, req.session.userId, req.params.id);
     if (!ok) {
       return res.status(404).json({ error: "Session not found" });
     }

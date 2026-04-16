@@ -14,16 +14,16 @@ function RowToTask(row) {
   };
 }
 
-//? Loads one task or returns undefined when missing
-export function GetTaskById(db, id) {
-  const row = db.prepare("SELECT * FROM tasks WHERE id = ?").get(id);
+//? Loads one task for this user or returns undefined
+export function GetTaskById(db, userId, id) {
+  const row = db.prepare("SELECT * FROM tasks WHERE id = ? AND user_id = ?").get(id, userId);
   return row ? RowToTask(row) : undefined;
 }
 
-//? Lists tasks with optional search, filters, and upcoming/overdue buckets
-export function GetTasks(db, { q, priority, status, category } = {}) {
-  const clauses = [];
-  const params = [];
+//? Lists tasks for one user with optional filters
+export function GetTasks(db, userId, { q, priority, status, category } = {}) {
+  const clauses = ["user_id = ?"];
+  const params = [userId];
 
   if (q && String(q).trim()) {
     const like = `%${String(q).trim().replace(/%/g, "\\%")}%`;
@@ -51,23 +51,24 @@ export function GetTasks(db, { q, priority, status, category } = {}) {
     clauses.push("date(deadline) < date('now')");
   }
 
-  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+  const where = `WHERE ${clauses.join(" AND ")}`;
   const sql = `SELECT * FROM tasks ${where} ORDER BY (deadline IS NULL), date(deadline) ASC, id ASC`;
   const rows = db.prepare(sql).all(...params);
   return rows.map(RowToTask);
 }
 
-//? Inserts a row and returns the new task object
-export function CreateTask(db, input) {
+//? Inserts a task row for this user
+export function CreateTask(db, userId, input) {
   const deadline = input.deadline ? String(input.deadline) : null;
   const completedAt = input.status === "completed" ? new Date().toISOString() : null;
 
   const info = db
     .prepare(
-      `INSERT INTO tasks (title, course, deadline, priority, estimated_hours, status, completed_at)
-       VALUES (@title, @course, @deadline, @priority, @estimated_hours, @status, @completed_at)`
+      `INSERT INTO tasks (user_id, title, course, deadline, priority, estimated_hours, status, completed_at)
+       VALUES (@user_id, @title, @course, @deadline, @priority, @estimated_hours, @status, @completed_at)`
     )
     .run({
+      user_id: userId,
       title: input.title,
       course: input.course ?? "",
       deadline,
@@ -77,12 +78,12 @@ export function CreateTask(db, input) {
       completed_at: completedAt,
     });
 
-  return GetTaskById(db, info.lastInsertRowid);
+  return GetTaskById(db, userId, info.lastInsertRowid);
 }
 
-//? Updates fields and keeps completed_at in sync with status
-export function UpdateTask(db, id, input) {
-  const existing = db.prepare("SELECT * FROM tasks WHERE id = ?").get(id);
+//? Updates a task if it belongs to this user
+export function UpdateTask(db, userId, id, input) {
+  const existing = db.prepare("SELECT * FROM tasks WHERE id = ? AND user_id = ?").get(id, userId);
   if (!existing) {
     return undefined;
   }
@@ -106,9 +107,10 @@ export function UpdateTask(db, id, input) {
       status = @status,
       completed_at = @completed_at,
       updated_at = datetime('now')
-    WHERE id = @id`
+    WHERE id = @id AND user_id = @user_id`
   ).run({
     id,
+    user_id: userId,
     title: input.title,
     course: input.course ?? "",
     deadline,
@@ -118,11 +120,11 @@ export function UpdateTask(db, id, input) {
     completed_at: completedAt,
   });
 
-  return GetTaskById(db, id);
+  return GetTaskById(db, userId, id);
 }
 
-//? Deletes a task row; sessions cascade in the DB
-export function DeleteTask(db, id) {
-  const info = db.prepare("DELETE FROM tasks WHERE id = ?").run(id);
+//? Deletes a task row for this user
+export function DeleteTask(db, userId, id) {
+  const info = db.prepare("DELETE FROM tasks WHERE id = ? AND user_id = ?").run(id, userId);
   return info.changes > 0;
 }
