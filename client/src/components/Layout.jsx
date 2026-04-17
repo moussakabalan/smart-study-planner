@@ -6,23 +6,22 @@ export default function Layout() {
   const navigate = useNavigate();
 
   async function handleLogout() {
+    const ok = window.confirm("Are you sure you want to log out?");
+    if (!ok) {
+      return;
+    }
     await logout();
     navigate("/login", { replace: true });
   }
 
   return (
-    <div>
-      <header>
-        <p>
-          <b>Smart Study Planner</b>
-          {user?.email ? (
-            <>
-              {" "}
-              <small>({user.email})</small>
-            </>
-          ) : null}
-        </p>
-        <nav aria-label="Main">
+    <div className="app-shell">
+      <header className="app-header">
+        <div>
+          <p className="brand-title">Smart Study Planner</p>
+          {user?.email ? <p className="brand-subtitle">Signed in as {user.email}</p> : null}
+        </div>
+        <nav aria-label="Main" className="app-nav">
           <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : undefined)}>
             Dashboard
           </NavLink>
@@ -32,7 +31,7 @@ export default function Layout() {
           </NavLink>
           <span className="sep">|</span>
           <NavLink to="/planner" className={({ isActive }) => (isActive ? "active" : undefined)}>
-            Weekly planner
+            Weekly Planner
           </NavLink>
           <span className="sep">|</span>
           <NavLink to="/notes" className={({ isActive }) => (isActive ? "active" : undefined)}>
@@ -44,21 +43,17 @@ export default function Layout() {
           </NavLink>
           <span className="sep">|</span>
           <button type="button" className="link-button" onClick={handleLogout}>
-            Log out
+            Log Out
           </button>
         </nav>
       </header>
-
-      <hr />
 
       <main>
         <Outlet />
       </main>
 
-      <hr />
-
       <footer>
-        <small>Looking better now... :).</small>
+        <small>Built for real student workflow, one week at a time.</small>
       </footer>
     </div>
   );

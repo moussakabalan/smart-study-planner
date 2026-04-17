@@ -30,9 +30,10 @@ export default function Login() {
   }
 
   return (
-    <div>
-      <h1 className="page-title">Log in</h1>
-      <p className="page-lead">Use the email and password you registered with.</p>
+    <div className="auth-shell">
+      <div className="auth-card">
+      <h1 className="page-title">Log In</h1>
+      <p className="page-lead">Welcome back. Let&apos;s get your study plan loaded.</p>
 
       <form className="auth-form" onSubmit={handleSubmit}>
         <label htmlFor="login-email">Email</label>
@@ -59,7 +60,7 @@ export default function Login() {
 
         <p style={{ marginTop: 12 }}>
           <button type="submit" disabled={busy}>
-            {busy ? "Signing in…" : "Sign in"}
+            {busy ? "Signing In…" : "Sign In"}
           </button>
         </p>
       </form>
@@ -70,9 +71,10 @@ export default function Login() {
         </p>
       ) : null}
 
-      <p className="page-lead">
-        No account? <Link to="/register">Create one</Link>.
-      </p>
+        <p className="page-lead">
+          No Account Yet? <Link to="/register">Create an Account</Link>.
+        </p>
+      </div>
     </div>
   );
 }

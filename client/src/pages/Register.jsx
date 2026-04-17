@@ -30,9 +30,10 @@ export default function Register() {
   }
 
   return (
-    <div>
-      <h1 className="page-title">Create account</h1>
-      <p className="page-lead">Pick an email and a password (at least 8 characters).</p>
+    <div className="auth-shell">
+      <div className="auth-card">
+      <h1 className="page-title">Create Account</h1>
+      <p className="page-lead">Set up your own planner space in under a minute.</p>
 
       <form className="auth-form" onSubmit={handleSubmit}>
         <label htmlFor="register-email">Email</label>
@@ -60,7 +61,7 @@ export default function Register() {
 
         <p style={{ marginTop: 12 }}>
           <button type="submit" disabled={busy}>
-            {busy ? "Creating…" : "Create account"}
+            {busy ? "Creating…" : "Create Account"}
           </button>
         </p>
       </form>
@@ -71,9 +72,10 @@ export default function Register() {
         </p>
       ) : null}
 
-      <p className="page-lead">
-        Already have an account? <Link to="/login">Log in</Link>.
-      </p>
+        <p className="page-lead">
+          Already Have an Account? <Link to="/login">Log In</Link>.
+        </p>
+      </div>
     </div>
   );
 }

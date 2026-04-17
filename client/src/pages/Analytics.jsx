@@ -42,19 +42,19 @@ export default function Analytics() {
 
   const rows = [
     {
-      label: "Tasks completed",
+      label: "Tasks Completed",
       value: loading ? "..." : String(summary?.tasksCompleted ?? 0),
     },
     {
-      label: "Planned study hours",
+      label: "Planned Study Hours",
       value: loading ? "..." : `${summary?.plannedStudyHours ?? 0}h`,
     },
     {
-      label: "Actual study hours",
+      label: "Actual Study Hours",
       value: loading ? "..." : `${summary?.actualStudyHours ?? 0}h`,
     },
     {
-      label: "Average completion time",
+      label: "Average Completion Time",
       value: loading ? "..." : `${summary?.averageCompletionHours ?? 0}h`,
     },
   ];
@@ -62,12 +62,10 @@ export default function Analytics() {
   return (
     <div className="page">
       <h1 className="page-title">Analytics</h1>
-      <p className="page-lead">
-        Server-calculated stats and rule-based risk warnings.
-      </p>
+      <p className="page-lead">Server-calculated stats and rule-based risk warnings.</p>
       {error ? <p className="muted">{error}</p> : null}
 
-      <section className="panel" aria-label="Sample analytics">
+      <section className="panel" aria-label="Sample Analytics">
         <h2 className="panel-title">Summary</h2>
 
         <table className="data-table">
@@ -88,16 +86,16 @@ export default function Analytics() {
         </table>
       </section>
 
-      <section className="panel" aria-label="Risk warnings">
-        <h2 className="panel-title">Risk warnings</h2>
+      <section className="panel" aria-label="Risk Warnings">
+        <h2 className="panel-title">Risk Warnings</h2>
 
         {loading ? (
-          <p className="muted">Loading...</p>
+          <p className="muted">Loading…</p>
         ) : (
           <>
             <p className="muted">
-              Time pressure tasks: {risk?.counts?.riskyTasks ?? 0} · Overdue tasks:{" "}
-              {risk?.counts?.overdueTasks ?? 0} · Clustered deadlines:{" "}
+              Time Pressure Tasks: {risk?.counts?.riskyTasks ?? 0} · Overdue Tasks:{" "}
+              {risk?.counts?.overdueTasks ?? 0} · Clustered Deadlines:{" "}
               {risk?.counts?.clusteredDeadlines ?? 0}
             </p>
 
@@ -108,7 +106,7 @@ export default function Analytics() {
                     <div>
                       <div className="task-title">{t.title}</div>
                       <div className="task-meta">
-                        Due {t.deadline} · {t.estimatedHours}h estimated · {t.daysRemaining} days left
+                        Due {t.deadline} · {t.estimatedHours}h Estimated · {t.daysRemaining} Days Left
                       </div>
                     </div>
                   </li>

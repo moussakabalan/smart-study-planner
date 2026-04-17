@@ -5,6 +5,7 @@ import {
   FetchTasks,
   UpdateTaskApi,
 } from "../api/tasksApi.js";
+import { taskStatusLabel } from "../lib/uiText.js";
 
 const emptyForm = {
   title: "",
@@ -126,6 +127,11 @@ export default function Tasks() {
   }
 
   async function RemoveTask(id) {
+    const ok = window.confirm("Are you sure you want to delete this task?");
+    if (!ok) {
+      return;
+    }
+
     setError(null);
 
     try {
@@ -158,7 +164,7 @@ export default function Tasks() {
   return (
     <div className="page">
       <h1 className="page-title">Tasks</h1>
-      <p className="page-lead">List is stored in SQLite via the API.</p>
+      <p className="page-lead">Your task list, saved in SQLite.</p>
 
       {error ? <p className="muted">{error}</p> : null}
 
@@ -170,7 +176,7 @@ export default function Tasks() {
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Title or course"
+              placeholder="Title or Course"
               className="input"
             />
           </label>
@@ -197,16 +203,16 @@ export default function Tasks() {
               onChange={(e) => setFilterStatus(e.target.value)}
             >
               <option value="all">All</option>
-              <option value="not_started">Not started</option>
-              <option value="in_progress">In progress</option>
+              <option value="not_started">Not Started</option>
+              <option value="in_progress">In Progress</option>
               <option value="completed">Completed</option>
             </select>
           </label>
         </div>
       </section>
 
-      <section className="panel" aria-label="Task form">
-        <h2 className="panel-title">{editingId != null ? "Edit task" : "New task"}</h2>
+      <section className="panel" aria-label="Task Form">
+        <h2 className="panel-title">{editingId != null ? "Edit Task" : "New Task"}</h2>
 
         <form className="form-grid" onSubmit={SaveTask}>
           <label className="field">
@@ -252,7 +258,7 @@ export default function Tasks() {
           </label>
 
           <label className="field">
-            <span className="field-label">Estimated hours</span>
+            <span className="field-label">Estimated Hours</span>
             <input
               type="number"
               min="0"
@@ -270,15 +276,15 @@ export default function Tasks() {
               value={form.status}
               onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
             >
-              <option value="not_started">Not started</option>
-              <option value="in_progress">In progress</option>
+              <option value="not_started">Not Started</option>
+              <option value="in_progress">In Progress</option>
               <option value="completed">Completed</option>
             </select>
           </label>
 
           <div className="form-actions">
             <button type="submit" className="button button-primary">
-              {editingId != null ? "Save changes" : "Add task"}
+              {editingId != null ? "Save Changes" : "Add Task"}
             </button>
             {editingId != null ? (
               <button type="button" className="button button-ghost" onClick={CancelEdit}>
@@ -289,8 +295,8 @@ export default function Tasks() {
         </form>
       </section>
 
-      <section className="panel" aria-label="Task list">
-        <h2 className="panel-title">Your tasks ({loading ? "…" : tasks.length})</h2>
+      <section className="panel" aria-label="Task List">
+        <h2 className="panel-title">Your Tasks ({loading ? "…" : tasks.length})</h2>
 
         {loading ? (
           <p className="muted">Loading…</p>
@@ -303,14 +309,14 @@ export default function Tasks() {
                 <div>
                   <div className="task-title">{task.title}</div>
                   <div className="task-meta">
-                    {task.course || "No course"} · due {task.deadline || "—"} ·{" "}
-                    {task.estimatedHours}h est. · {task.priority}
+                    {task.course || "No Course"} · Due {task.deadline || "—"} ·{" "}
+                    {task.estimatedHours}h Est. · {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
                   </div>
                 </div>
 
                 <div className="row-actions">
                   <span className={`badge badge-${task.status.replace("_", "-")}`}>
-                    {task.status.replace("_", " ")}
+                    {taskStatusLabel(task.status)}
                   </span>
                   <button type="button" className="button button-ghost" onClick={() => StartEdit(task)}>
                     Edit

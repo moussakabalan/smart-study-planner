@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { FetchTasks, FetchUpcomingTasks } from "../api/tasksApi.js";
 import { FetchAnalyticsSummary, FetchRiskSummary } from "../api/analyticsApi.js";
+import { taskStatusLabel } from "../lib/uiText.js";
 
 //? Dashboard now shows tasks + analytics + risk warnings from backend
 export default function Dashboard() {
@@ -55,52 +56,52 @@ export default function Dashboard() {
   return (
     <div className="page">
       <h1 className="page-title">Dashboard</h1>
-      <p className="page-lead">Task, analytics, and risk numbers come from the server.</p>
+      <p className="page-lead">Quick snapshot of what needs attention this week.</p>
 
       {error ? <p className="muted">{error}</p> : null}
 
       <section className="card-grid" aria-label="Summary">
         <article className="card">
-          <h2 className="card-title">Open tasks</h2>
+          <h2 className="card-title">Open Tasks</h2>
           <p className="card-metric">{loading ? "…" : openCount}</p>
           <Link className="text-link" to="/tasks">
-            Go to tasks
+            Go To Tasks
           </Link>
         </article>
 
         <article className="card">
-          <h2 className="card-title">Planned vs actual study</h2>
+          <h2 className="card-title">Planned vs Actual Study</h2>
           <p className="card-metric">
             {loading ? "…" : `${summary?.plannedStudyHours ?? 0}h / ${summary?.actualStudyHours ?? 0}h`}
           </p>
           <Link className="text-link" to="/analytics">
-            Open analytics
+            Open Analytics
           </Link>
         </article>
 
         <article className="card">
-          <h2 className="card-title">Risk alerts</h2>
+          <h2 className="card-title">Risk Alerts</h2>
           <p className="card-metric">{loading ? "…" : risk?.counts?.riskyTasks ?? 0}</p>
           <Link className="text-link" to="/analytics">
-            View warnings
+            View Warnings
           </Link>
         </article>
       </section>
 
-      <section className="panel" aria-label="Risk summary">
-        <h2 className="panel-title">Risk summary</h2>
+      <section className="panel" aria-label="Risk Summary">
+        <h2 className="panel-title">Risk Summary</h2>
         {loading ? (
-          <p className="muted">Loading...</p>
+          <p className="muted">Loading…</p>
         ) : (
           <p className="muted">
-            Overdue: {risk?.counts?.overdueTasks ?? 0} · Clustered in next 7 days:{" "}
+            Overdue: {risk?.counts?.overdueTasks ?? 0} · Clustered in Next 7 Days:{" "}
             {risk?.counts?.clusteredDeadlines ?? 0}
           </p>
         )}
       </section>
 
-      <section className="panel" aria-label="Upcoming tasks">
-        <h2 className="panel-title">Upcoming tasks (from API)</h2>
+      <section className="panel" aria-label="Upcoming Tasks">
+        <h2 className="panel-title">Upcoming Tasks</h2>
 
         {loading ? (
           <p className="muted">Loading…</p>
@@ -113,11 +114,12 @@ export default function Dashboard() {
                 <div>
                   <div className="task-title">{task.title}</div>
                   <div className="task-meta">
-                    {task.course || "No course"} · due {task.deadline || "—"} · {task.priority} priority
+                    {task.course || "No Course"} · Due {task.deadline || "—"} ·{" "}
+                    {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)} Priority
                   </div>
                 </div>
                 <span className={`badge badge-${task.status.replace("_", "-")}`}>
-                  {task.status.replace("_", " ")}
+                  {taskStatusLabel(task.status)}
                 </span>
               </li>
             ))}

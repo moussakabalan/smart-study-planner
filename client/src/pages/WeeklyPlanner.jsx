@@ -140,6 +140,11 @@ export default function WeeklyPlanner() {
   }
 
   async function RemoveSession(id) {
+    const ok = window.confirm("Are you sure you want to delete this study session?");
+    if (!ok) {
+      return;
+    }
+
     setError(null);
     try {
       await DeleteSessionApi(id);
@@ -151,27 +156,27 @@ export default function WeeklyPlanner() {
 
   return (
     <div className="page">
-      <h1 className="page-title">Weekly planner</h1>
+      <h1 className="page-title">Weekly Planner</h1>
       <p className="page-lead">Move between weeks and create sessions linked to real tasks.</p>
       {error ? <p className="muted">{error}</p> : null}
 
       <div className="toolbar">
         <button type="button" className="button button-ghost" onClick={() => setWeekOffset((w) => w - 1)}>
-          Previous week
+          Previous Week
         </button>
         <span className="toolbar-label">
           Week of {FormatDayLabel(weekStart)} — {FormatDayLabel(AddDays(weekStart, 6))}
         </span>
         <button type="button" className="button button-ghost" onClick={() => setWeekOffset((w) => w + 1)}>
-          Next week
+          Next Week
         </button>
         <button type="button" className="button button-ghost" onClick={() => setWeekOffset(0)}>
-          This week
+          This Week
         </button>
       </div>
 
-      <section className="panel" aria-label="Add session">
-        <h2 className="panel-title">Add session</h2>
+      <section className="panel" aria-label="Add Session">
+        <h2 className="panel-title">Add Session</h2>
         <form className="form-grid form-grid-tight" onSubmit={AddSession}>
           <label className="field">
             <span className="field-label">Task</span>
@@ -181,7 +186,7 @@ export default function WeeklyPlanner() {
               onChange={(e) => setDraft((d) => ({ ...d, taskId: e.target.value }))}
               required
             >
-              <option value="">Select a task</option>
+              <option value="">Select a Task</option>
               {tasks.map((task) => (
                 <option key={task.id} value={task.id}>
                   {task.title}
@@ -213,7 +218,7 @@ export default function WeeklyPlanner() {
           </label>
           <div className="form-actions">
             <button type="submit" className="button button-primary">
-              Add to this week
+              Add To This Week
             </button>
           </div>
         </form>
@@ -229,16 +234,16 @@ export default function WeeklyPlanner() {
               <h2 className="day-heading">{FormatDayLabel(day)}</h2>
 
               {loading ? (
-                <p className="muted day-empty">Loading...</p>
+                <p className="muted day-empty">Loading…</p>
               ) : list.length === 0 ? (
-                <p className="muted day-empty">No sessions</p>
+                <p className="muted day-empty">No Sessions</p>
               ) : (
                 <ul className="session-list">
                   {list.map((s) => (
                     <li key={s.id} className="session-card">
                       <div>
                         <div className="session-title">{s.taskTitle}</div>
-                        <div className="session-meta">{s.plannedDurationMinutes} minutes</div>
+                        <div className="session-meta">{s.plannedDurationMinutes} Minutes</div>
                       </div>
                       <button
                         type="button"

@@ -122,6 +122,11 @@ export default function Notes() {
   }
 
   async function RemoveNote(id) {
+    const ok = window.confirm("Are you sure you want to delete this note?");
+    if (!ok) {
+      return;
+    }
+
     setError(null);
     try {
       await DeleteNoteApi(id);
@@ -153,29 +158,29 @@ export default function Notes() {
   return (
     <div className="page">
       <h1 className="page-title">Notes</h1>
-      <p className="page-lead">Plain text or markdown notes saved in SQLite.</p>
+      <p className="page-lead">Plain Text or Markdown notes saved in SQLite.</p>
       {error ? <p className="muted">{error}</p> : null}
 
-      <section className="panel" aria-label="Search notes">
+      <section className="panel" aria-label="Search Notes">
         <div className="filter-row">
           <label className="field">
-            <span className="field-label">Search notes</span>
+            <span className="field-label">Search Notes</span>
             <input
               type="search"
               className="input"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search title/body"
+              placeholder="Search Title or Body"
             />
           </label>
           <label className="field">
-            <span className="field-label">Task filter</span>
+            <span className="field-label">Task Filter</span>
             <select
               className="input"
               value={taskFilter}
               onChange={(e) => setTaskFilter(e.target.value)}
             >
-              <option value="all">All tasks</option>
+              <option value="all">All Tasks</option>
               {tasks.map((task) => (
                 <option key={task.id} value={task.id}>
                   {task.title}
@@ -186,8 +191,8 @@ export default function Notes() {
         </div>
       </section>
 
-      <section className="panel" aria-label="Note form">
-        <h2 className="panel-title">{editingId ? "Edit note" : "New note"}</h2>
+      <section className="panel" aria-label="Note Form">
+        <h2 className="panel-title">{editingId ? "Edit Note" : "New Note"}</h2>
 
         <form className="form-stack" onSubmit={SaveNote}>
           <label className="field">
@@ -207,19 +212,19 @@ export default function Notes() {
               value={form.format}
               onChange={(e) => setForm((f) => ({ ...f, format: e.target.value }))}
             >
-              <option value="plain">Plain text</option>
+              <option value="plain">Plain Text</option>
               <option value="markdown">Markdown</option>
             </select>
           </label>
 
           <label className="field">
-            <span className="field-label">Linked task (optional)</span>
+            <span className="field-label">Linked Task (Optional)</span>
             <select
               className="input"
               value={form.taskId}
               onChange={(e) => setForm((f) => ({ ...f, taskId: e.target.value }))}
             >
-              <option value="">No linked task</option>
+              <option value="">No Linked Task</option>
               {tasks.map((task) => (
                 <option key={task.id} value={task.id}>
                   {task.title}
@@ -240,7 +245,7 @@ export default function Notes() {
 
           <div className="form-actions">
             <button type="submit" className="button button-primary">
-              {editingId ? "Save note" : "Add note"}
+              {editingId ? "Save Note" : "Add Note"}
             </button>
             {editingId ? (
               <button type="button" className="button button-ghost" onClick={CancelEdit}>
@@ -251,11 +256,11 @@ export default function Notes() {
         </form>
       </section>
 
-      <section className="panel" aria-label="Notes list">
-        <h2 className="panel-title">All notes ({loading ? "..." : notes.length})</h2>
+      <section className="panel" aria-label="Notes List">
+        <h2 className="panel-title">All Notes ({loading ? "…" : notes.length})</h2>
 
         {loading ? (
-          <p className="muted">Loading...</p>
+          <p className="muted">Loading…</p>
         ) : notes.length === 0 ? (
           <p className="muted">No notes match your search.</p>
         ) : (
@@ -266,7 +271,7 @@ export default function Notes() {
                   <div>
                     <div className="note-title">{note.title}</div>
                     <div className="note-meta">
-                      {note.format === "markdown" ? "Markdown" : "Plain text"}
+                      {note.format === "markdown" ? "Markdown" : "Plain Text"}
                       {note.taskTitle ? ` · Linked: ${note.taskTitle}` : ""}
                     </div>
                   </div>
