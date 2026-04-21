@@ -1,0 +1,30 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: smart-study-api
+    environment:
+      PORT: 3001
+      CLIENT_URL: http://localhost:5173
+      DATABASE_PATH: /app/database/app.sqlite
+      SESSION_SECRET: ${SESSION_SECRET:-dev-secret-change-me}
+    ports:
+      - "3001:3001"
+    volumes:
+      - db-data:/app/database
+
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    container_name: smart-study-client
+    environment:
+      VITE_PROXY_TARGET: http://api:3001
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+
+volumes:
+  db-data:

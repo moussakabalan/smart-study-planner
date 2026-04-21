@@ -1,6 +1,6 @@
 # Smart Task & Study Planner
 
-Single-user academic planner: tasks, study sessions, notes, weekly planner, analytics, and deadline risk (built in phases).
+Academic planner with login: tasks, study sessions, notes, weekly planner, analytics, and deadline risk (built in phases).
 
 ## Stack
 
@@ -33,7 +33,28 @@ npm run dev
 - Client: http://localhost:5173 (Vite proxies `/api` to the server)
 - API: http://127.0.0.1:3001 (see `PORT` in `.env`)
 
-Use `VITE_API_URL` in `.env` only if you need a full URL instead of the dev proxy (e.g. production build against a remote API).
+Use `VITE_API_URL` in `.env` only if you need a full URL instead of the dev proxy. *This is only intended in production and for the sake of this demo, is left blank on purpose.*
+
+Change `SESSION_SECRET` in `.env` to a secret phase/token as this is used for login/session encryption!
+
+## Run with Docker (My preferred method!)
+
+From the repo root:
+
+```bash
+docker compose up --build
+```
+
+Then open:
+
+- Client: http://localhost:5173
+- API: http://localhost:3001
+
+Notes:
+
+- SQLite data is persisted in the Docker volume `db-data`.
+- If you want a fresh database, run `docker compose down -v` and start again.
+- `SESSION_SECRET` is read from the .env file if set; otherwise it uses a local fallback value.
 
 ## Scripts
 
